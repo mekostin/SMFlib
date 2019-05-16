@@ -11,19 +11,12 @@ defmodule Smflib.Authorization do
     header |> Enum.reduce([], &Smflib.Authorization.grab_sessid(&1, &2))
   end
 
-  def grab_seqnum([_, <<"<input type=\"hidden\" name=\"", name::bytes-size(12),
-                    "\" value=\"", value::bytes-size(32), "\" />", _::binary>>, _]) do
-    {String.to_atom(name), value}
-  end
-
   def grab_seqnum(body) do
-    body
-      |> String.split("<input type=\"hidden\" name=\"hash_passwrd\" value=\"\" />")
-      |> grab_seqnum
-  end
-
-  def grab_seqnum(_) do
-    []
+    with [_, sessvar] <- Regex.run(~r/SessionVar: '(.*?)'/, body),
+         [_, sessid] <- Regex.run(~r/SessionId: '(.*?)'/, body)
+    do
+      {String.to_atom(sessvar), sessid}
+    end
   end
 
   def get(url, user, password) do
