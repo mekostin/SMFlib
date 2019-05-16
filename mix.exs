@@ -7,22 +7,28 @@ defmodule Smflib.MixProject do
       version: "0.1.0",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      package: [
+        maintainers: ["Joshua Nussbaum"],
+        licenses: ["MIT"],
+        links: %{github: "https://github.com/mekostin/smflib"}
+      ],
+      description: """
+           SNF forum library for Elixir
+      """
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: []
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:httpoison, "~> 0.10.0"},
+      {:poison, ">=0.0.0", override: true},
     ]
   end
 end
