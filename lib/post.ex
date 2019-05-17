@@ -1,14 +1,7 @@
 defmodule Smflib.Post do
 
   defmodule Data do
-    defstruct board: 0, subject: "", message: "", sessid: {}
-  end
-
-  defp grab_seqnum(body) do
-    with [_, seqnum] <- Regex.run(~r/name="seqnum" value="(.*?)"/, body)
-    do
-      {:seqnum, seqnum}
-    end
+    defstruct board: 0, subject: "", message: "", sessid: nil, topic: 0
   end
 
   def new(url, user, password, message) do
@@ -18,7 +11,16 @@ defmodule Smflib.Post do
       |> new_topic(url)
   end
 
-  defp new_topic(%Smflib.Post.Data{board: board, subject: subj, message: msg, sessid: sessid}, url) do
+  defp grab_seqnum(body) do
+    with [_, seqnum] <- Regex.run(~r/name="seqnum" value="(.*?)"/, body)
+    do
+      {:seqnum, seqnum}
+    end
+  end
+
+  defp new_topic(%Smflib.Post.Data{board: board, subject: subj, message: msg, sessid: sessid}, url)
+  when not is_nil(sessid) do
+
     url="#{url}/index.php?action=post;board=#{board}"
     case HTTPoison.post!(url, {:form, [sessid]}) do
       %HTTPoison.Response{body: body, headers: headers, status_code: 200} ->
@@ -51,6 +53,49 @@ defmodule Smflib.Post do
   defp new_topic(_) do
     :error
   end
+
+  def update(url, user, password, message) do
+    Smflib.Authorization.get(url, user, password)
+      |> (fn (auth) -> %{sessid: auth} end).()
+      |> Map.merge(message, fn _, sessid, _ -> sessid end)
+      |> find_topic(url, 0)
+      |> update_topic(url)
+  end
+
+  def find_topic(%Smflib.Post.Data{board: board, subject: subj, sessid: sessid} = msg, url, board_list_id)
+  when not is_nil(sessid) do
+    if board_list_id<=20 do
+      url="#{url}/index.php?board=#{board}.#{board_list_id}"
+      case HTTPoison.post(url, {:form, [sessid]}) do
+        %HTTPoison.Response{body: body, headers: _, status_code: 200} ->
+            reg=Regex.compile!("<a (.+)>#{subj}")
+            case Regex.match?(reg, body) do
+              true ->
+                Regex.scan(reg, body)
+                  |> IO.inspect
+                  |> hd |> tl |>hd |> String.split(";") |> tl |> hd |> String.split("=") |> tl |> hd |>String.trim("\"")
+              false->
+                find_topic(msg, url, board_list_id+1)
+            end
+        _ -> :error
+      end
+    end
+  end
+
+  def update_topic(%Smflib.Post.Data{board: board, subject: subj, message: msg, sessid: sessid} = msg, url)
+  when not is_nil(sessid) do
+    :ok
+  end
+
+  def find_topic(_) do
+    :error
+  end
+
+  def update_topic(_) do
+    :error
+  end
+
+
 
   # def update(%{board: board, subject: subj, message: msg}) do
   #   postdata=authorize()
@@ -116,18 +161,6 @@ defmodule Smflib.Post do
   # end
   #
   #
-  # defp find_topic(postdata, board, subj, board_list_id) do
-  #   if board_list_id<=20 do
-  #     url=Configuration.get("FORUM/URL")<>"/index.php?board=#{board}.#{inspect board_list_id}"
-  #     {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: code}}=HTTPoison.post(url, {:form, postdata})
-  #     reg=Regex.compile!("<a (.+)>#{subj}")
-  #     case Regex.match?(reg, body) do
-  #       true ->
-  #         Regex.scan(reg, body) |> hd |> tl |>hd |> String.split(";") |> tl |> hd |> String.split("=") |> tl |> hd |>String.trim("\"")
-  #       false->find_topic(postdata, board, subj, board_list_id+1)
-  #     end
-  #   end
-  # end
 
 
 end
