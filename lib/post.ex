@@ -1,23 +1,57 @@
 defmodule Smflib.Post do
-  # def new(%{board: board, subject: subj, message: msg}) do
-  #   postdata=authorize()
-  #   url=Configuration.get("FORUM/URL")<>"/index.php?action=post;board="<>board
-  #   {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: code}}=HTTPoison.post(url, {:form, postdata})
-  #
-  #   # IO.inspect body
-  #   postdata=postdata
-  #           ++ [{:subject, subj}, {:icon, "xx"}, {:message, msg}, {:notify, 0}, {:goback, 0}, {:sticky, 0}, {:move, 0}]
-  #           ++ find_seqnum(body, "name=\"additional_options\"")
-  #
-  #   # IO.inspect postdata
-  #   url=Configuration.get("FORUM/URL")<>"/index.php?action=post2;start=0;board="<>board
-  #   {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: code}}=HTTPoison.post(url, {:form, postdata})
-  #   case code do
-  #     302-> :ok
-  #     _->:error
-  #   end
-  # end
-  #
+
+  defmodule Data do
+    defstruct board: 0, subject: "", message: "", sessid: {}
+  end
+
+  defp grab_seqnum(body) do
+    with [_, seqnum] <- Regex.run(~r/name="seqnum" value="(.*?)"/, body)
+    do
+      {:seqnum, seqnum}
+    end
+  end
+
+  def new(url, user, password, message) do
+    Smflib.Authorization.get(url, user, password)
+      |> (fn (auth) -> %{sessid: auth} end).()
+      |> Map.merge(message, fn _, sessid, _ -> sessid end)
+      |> new_topic(url)
+  end
+
+  defp new_topic(%Smflib.Post.Data{board: board, subject: subj, message: msg, sessid: sessid}, url) do
+    url="#{url}/index.php?action=post;board=#{board}"
+    case HTTPoison.post!(url, {:form, [sessid]}) do
+      %HTTPoison.Response{body: body, headers: headers, status_code: 200} ->
+          postdata = [
+            {:topic, 0},
+            {:subject, subj},
+            {:icon, "xx"},
+            {:message, msg},
+            {:message_mode, 0},
+            {:notify, 0},
+            {:lock, 0},
+            {:sticky, 0},
+            {:move, 0},
+            {:additional_options, 0},
+            sessid,
+            Smflib.Authorization.grab_sessvar(body),
+            grab_seqnum(body)
+          ]
+
+          url="#{url}/index.php?PHPSESSID=#{elem(sessid, 1)};action=post2;start=0;board=#{board}"
+          new_topic(HTTPoison.post!(url, {:form, postdata}))
+        _ -> :error
+    end
+  end
+
+  defp new_topic(%HTTPoison.Response{body: body, headers: _, status_code: 302}) do
+    :ok
+  end
+
+  defp new_topic(_) do
+    :error
+  end
+
   # def update(%{board: board, subject: subj, message: msg}) do
   #   postdata=authorize()
   #   topic=find_topic(postdata, board, subj, 0)
