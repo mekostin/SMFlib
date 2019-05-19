@@ -1,7 +1,9 @@
 defmodule Smflib.Post do
+  @max_deep_board_page 20
 
   def new(data, board, subject, message) do
-    Map.merge(data, %{board: board, subject: subject, message: message}) |> new_topic
+    Map.merge(data, %{board_id: board, subject: subject, message: message})
+      |> new_topic
   end
 
   defp grab_seqnum(body) do
@@ -11,8 +13,11 @@ defmodule Smflib.Post do
     end
   end
 
-  defp new_topic(%Smflib.Data{url: url, board: board, subject: subj, message: msg, sessid: sessid})
-  when not is_nil(sessid) do
+  defp new_topic(%{sess_id: nil}) do
+    :error
+  end
+
+  defp new_topic(%Smflib.Data{url: url, board_id: board, subject: subj, message: msg, sess_id: sessid}) do
     url="#{url}/index.php?action=post;board=#{board}"
     case HTTPoison.post!(url, {:form, [sessid]}) do
       %HTTPoison.Response{body: body, headers: headers, status_code: 200} ->
@@ -46,50 +51,51 @@ defmodule Smflib.Post do
     :error
   end
 
-  def update(url, user, password, message) do
-    Smflib.Authorization.get(url, user, password)
-      |> (fn (auth) -> %{sessid: auth} end).()
-      |> Map.merge(message, fn _, sessid, _ -> sessid end)
+  def update(data, board, subject, message) do
+    data
+      |> Map.merge(%{board_id: board, subject: subject})
+      |> update(message)
+  end
+
+  def update(data, message) do
+    data
+      |> Map.merge(%{message: message})
       |> find_topic(0)
       |> update_topic
   end
 
-  def find_topic(%Smflib.Data{url: url, board: board, subject: subj, sessid: sessid} = msg, board_list_id)
-  when not is_nil(sessid) do
-    if board_list_id<=20 do
-      url="#{url}/index.php?board=#{board}.#{board_list_id}"
-      case HTTPoison.post(url, {:form, [sessid]}) do
-        %HTTPoison.Response{body: body, headers: _, status_code: 200} ->
-            reg=Regex.compile!("<a (.+)>#{subj}")
-            case Regex.match?(reg, body) do
-              true ->
-                Regex.scan(reg, body)
-                  |> IO.inspect
-                  |> hd |> tl |>hd |> String.split(";") |> tl |> hd |> String.split("=") |> tl |> hd |>String.trim("\"")
-              false->
-                find_topic(msg, board_list_id+1)
-            end
-        _ -> :error
-      end
-    end
+  def find_topic(data, @max_deep_board_page) do
+    data
   end
 
-  def update_topic(%Smflib.Data{url: url, board: board, subject: subj, message: msg, sessid: sessid} = msg)
-  when not is_nil(sessid) do
+  def find_topic(%{sess_id: nil} = data, _) do
+    data
+  end
+
+  def find_topic(%Smflib.Data{url: url, board_id: board, subject: subj, sess_id: sessid, topic_id: 0} = msg, board_list_id) do
+      url="#{url}/index.php?board=#{board}.#{board_list_id}"
+      with %HTTPoison.Response{body: body, headers: _, status_code: 200} <- HTTPoison.post!(url, {:form, [sessid]}),
+           [_, _, topic_id] <- Regex.run(~r/<a href="(.+);topic=(.+).0">#{subj}/, body)
+      do
+        msg |> Map.merge(%{topic_id: String.to_integer(topic_id)})
+      else
+        _ -> find_topic(msg, board_list_id + 1)
+      end
+  end
+
+  defp update_topic(%{sess_id: nil}) do
+    :error
+  end
+
+  defp update_topic(%{topic_id: 0}) do
+    :error
+  end
+
+  defp update_topic(%Smflib.Data{url: url, board_id: board, subject: subj, message: msg, sess_id: sessid, topic_id: topic}) do
     :ok
   end
 
-  def find_topic(_) do
-    :error
-  end
-
-  def update_topic(_) do
-    :error
-  end
-
-
-
-  # def update(%{board: board, subject: subj, message: msg}) do
+  # def update(%{board_id: board, subject: subj, message: msg}) do
   #   postdata=authorize()
   #   topic=find_topic(postdata, board, subj, 0)
   #   url=Configuration.get("FORUM/URL")<>"/index.php?topic=#{topic}"
@@ -108,7 +114,7 @@ defmodule Smflib.Post do
   #   end
   # end
   #
-  # def archive(%{board: board, subject: subj}) do
+  # def archive(%{board_id: board, subject: subj}) do
   #   postdata=authorize()
   #   topic=find_topic(postdata, board, subj, 0)
   #   url=Configuration.get("FORUM/URL")<>"/index.php?topic=#{topic}"

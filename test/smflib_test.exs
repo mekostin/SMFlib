@@ -8,12 +8,16 @@ defmodule SmflibTest do
     password = System.get_env("SMF_PASSWORD")
 
     board_id = 13
-    topic = "TEST TOPIC"
+    subject = "TEST TOPIC"
     message = "Hello World"
     add_message = "The World is Mine"
 
     Smflib.authorize(url, user, password)
-      |> Smflib.Post.new(board_id, topic, message)
+      |> Smflib.Post.new(board_id, subject, message)
+      # |> Smflib.Post.updat(add_message)
+
+    Smflib.authorize(url, user, password)
+      |>Smflib.Post.update(board_id, subject, add_message)
 
   end
 end
