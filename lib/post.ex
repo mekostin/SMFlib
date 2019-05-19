@@ -17,7 +17,7 @@ defmodule Smflib.Post do
     :error
   end
 
-  defp new_topic(%Smflib.Data{url: url, board_id: board, subject: subj, message: msg, sess_id: sessid}) do
+  defp new_topic(%Smflib.Data{url: url, board_id: board, subject: subj, message: msg, sess_id: sessid} = data) do
     url="#{url}/index.php?action=post;board=#{board}"
     case HTTPoison.post!(url, {:form, [sessid]}) do
       %HTTPoison.Response{body: body, headers: headers, status_code: 200} ->
@@ -38,13 +38,13 @@ defmodule Smflib.Post do
           ]
 
           url="#{url}/index.php?PHPSESSID=#{elem(sessid, 1)};action=post2;start=0;board=#{board}"
-          new_topic(HTTPoison.post!(url, {:form, postdata}))
+          new_topic(HTTPoison.post!(url, {:form, postdata}), data)
         _ -> :error
     end
   end
 
-  defp new_topic(%HTTPoison.Response{body: body, headers: _, status_code: 302}) do
-    :ok
+  defp new_topic(%HTTPoison.Response{body: body, headers: _, status_code: 302}, data) do
+    data
   end
 
   defp new_topic(_) do
@@ -57,11 +57,19 @@ defmodule Smflib.Post do
       |> update(message)
   end
 
+  def update(:error, _) do
+    :error
+  end
+
   def update(data, message) do
     data
+      |> IO.inspect
       |> Map.merge(%{message: message})
+      |> IO.inspect
       |> find_topic(0)
+      |> IO.inspect
       |> update_topic
+      |> IO.inspect
   end
 
   def find_topic(data, @max_deep_board_page) do
@@ -79,7 +87,8 @@ defmodule Smflib.Post do
       do
         msg |> Map.merge(%{topic_id: String.to_integer(topic_id)})
       else
-        _ -> find_topic(msg, board_list_id + 1)
+        _ ->
+            find_topic(msg, board_list_id + 1)
       end
   end
 
@@ -91,29 +100,38 @@ defmodule Smflib.Post do
     :error
   end
 
-  defp update_topic(%Smflib.Data{url: url, board_id: board, subject: subj, message: msg, sess_id: sessid, topic_id: topic}) do
-    :ok
+  defp update_topic(%Smflib.Data{url: url, board_id: board, subject: subj,
+                                 message: msg, sess_id: sessid, topic_id: topic}) do
+   url="#{url}/index.php?topic=#{topic}"
+   with %HTTPoison.Response{body: body, headers: _, status_code: 200} <- HTTPoison.post!(url, {:form, [sessid]}),
+        [_, _, last_msg] <- Regex.run(~r/<a class=\"button_strip_reply active\" href="(.+);last_msg=(.+)">/, body)
+   do
+     postdata = [
+       {:topic, topic},
+       {:subject, "Re: #{subj}"},
+       {:icon, "xx"},
+       {:message, msg},
+       {:message_mode, 0},
+       {:notify, 0},
+       {:lock, 0},
+       {:sticky, 0},
+       {:move, 0},
+       {:additional_options, 0},
+       sessid,
+       Smflib.Authorization.grab_sessvar(body),
+       grab_seqnum(body)
+     ]
+
+     IO.inspect postdata
+
+     url="#{url}/index.php?PHPSESSID=#{elem(sessid, 1)};action=post2;board=#{board}"
+     case HTTPoison.post!(url, {:form, postdata}) do
+       %HTTPoison.Response{body: _, headers: _, status_code: 302} -> :ok
+       _ -> :error
+     end
+   end
   end
 
-  # def update(%{board_id: board, subject: subj, message: msg}) do
-  #   postdata=authorize()
-  #   topic=find_topic(postdata, board, subj, 0)
-  #   url=Configuration.get("FORUM/URL")<>"/index.php?topic=#{topic}"
-  #   {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: code}}=HTTPoison.post(url, {:form, postdata})
-  #   last_msg=Regex.scan(~r/last_msg=\d+/, body) |> hd |> hd |> String.split("=") |> tl |> hd
-  #
-  #   postdata=postdata
-  #           ++ [{:topic, topic}, {:subject, "Re: #{subj}"}, {:icon, "xx"}, {:message, msg}, {:notify, 0}, {:goback, 0}, {:sticky, 0}, {:move, 0}]
-  #           ++ find_seqnum(body, "name=\"last_msg\"")
-  #
-  #   url=Configuration.get("FORUM/URL")<>"/index.php?action=post2;start=0;board="<>board
-  #   {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: code}}=HTTPoison.post(url, {:form, postdata})
-  #   case code do
-  #     302-> :ok
-  #     _->:error
-  #   end
-  # end
-  #
   # def archive(%{board_id: board, subject: subj}) do
   #   postdata=authorize()
   #   topic=find_topic(postdata, board, subj, 0)

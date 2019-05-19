@@ -12,12 +12,14 @@ defmodule SmflibTest do
     message = "Hello World"
     add_message = "The World is Mine"
 
-    Smflib.authorize(url, user, password)
-      |> Smflib.Post.new(board_id, subject, message)
-      # |> Smflib.Post.updat(add_message)
+    # Smflib.authorize(url, user, password)
+    #   |> Smflib.Post.new(board_id, subject, message)
+    #   # |> Smflib.Post.update(add_message)
+    #
+    # :timer.sleep(10)
 
     Smflib.authorize(url, user, password)
-      |>Smflib.Post.update(board_id, subject, add_message)
+      |> Smflib.Post.update(board_id, subject, add_message)
 
   end
 end
