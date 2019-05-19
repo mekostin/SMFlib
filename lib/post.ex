@@ -1,14 +1,7 @@
 defmodule Smflib.Post do
 
-  defmodule Data do
-    defstruct board: 0, subject: "", message: "", sessid: nil, topic: 0
-  end
-
-  def new(url, user, password, message) do
-    Smflib.Authorization.get(url, user, password)
-      |> (fn (auth) -> %{sessid: auth} end).()
-      |> Map.merge(message, fn _, sessid, _ -> sessid end)
-      |> new_topic(url)
+  def new(data, board, subject, message) do
+    Map.merge(data, %{board: board, subject: subject, message: message}) |> new_topic
   end
 
   defp grab_seqnum(body) do
@@ -18,9 +11,8 @@ defmodule Smflib.Post do
     end
   end
 
-  defp new_topic(%Smflib.Post.Data{board: board, subject: subj, message: msg, sessid: sessid}, url)
+  defp new_topic(%Smflib.Data{url: url, board: board, subject: subj, message: msg, sessid: sessid})
   when not is_nil(sessid) do
-
     url="#{url}/index.php?action=post;board=#{board}"
     case HTTPoison.post!(url, {:form, [sessid]}) do
       %HTTPoison.Response{body: body, headers: headers, status_code: 200} ->
@@ -58,11 +50,11 @@ defmodule Smflib.Post do
     Smflib.Authorization.get(url, user, password)
       |> (fn (auth) -> %{sessid: auth} end).()
       |> Map.merge(message, fn _, sessid, _ -> sessid end)
-      |> find_topic(url, 0)
-      |> update_topic(url)
+      |> find_topic(0)
+      |> update_topic
   end
 
-  def find_topic(%Smflib.Post.Data{board: board, subject: subj, sessid: sessid} = msg, url, board_list_id)
+  def find_topic(%Smflib.Data{url: url, board: board, subject: subj, sessid: sessid} = msg, board_list_id)
   when not is_nil(sessid) do
     if board_list_id<=20 do
       url="#{url}/index.php?board=#{board}.#{board_list_id}"
@@ -75,14 +67,14 @@ defmodule Smflib.Post do
                   |> IO.inspect
                   |> hd |> tl |>hd |> String.split(";") |> tl |> hd |> String.split("=") |> tl |> hd |>String.trim("\"")
               false->
-                find_topic(msg, url, board_list_id+1)
+                find_topic(msg, board_list_id+1)
             end
         _ -> :error
       end
     end
   end
 
-  def update_topic(%Smflib.Post.Data{board: board, subject: subj, message: msg, sessid: sessid} = msg, url)
+  def update_topic(%Smflib.Data{url: url, board: board, subject: subj, message: msg, sessid: sessid} = msg)
   when not is_nil(sessid) do
     :ok
   end
