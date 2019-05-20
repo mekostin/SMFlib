@@ -21,25 +21,25 @@ end
 
 ## Examples
 
-###Add new forum topic with message
+### Add new forum topic with message
 ```elixir
 Smflib.authorize(url, user, password)
   |> Smflib.Post.new(board_id, subject, message)
 ```
 
-###Update the topic with an additional message
+### Update the topic with an additional message
 ```elixir
 Smflib.authorize(url, user, password)
   |> Smflib.Post.update(board_id, subject, add_message)
 ```
 
-###Lock and move topic to archive
+### Lock and move topic to archive
 ```elixir
 Smflib.authorize(url, user, password)
   |> Smflib.Post.archive(board_id, subject, add_message)
 ```
 
-###Full example
+### Full example
 SMF requires to make a delay between forum posting actions. Function sleep_between_actions is realized this requirements.
 
 ```elixir
