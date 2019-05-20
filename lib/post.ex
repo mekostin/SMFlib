@@ -63,13 +63,9 @@ defmodule Smflib.Post do
 
   def update(data, message) do
     data
-      |> IO.inspect
       |> Map.merge(%{message: message})
-      |> IO.inspect
       |> find_topic(0)
-      |> IO.inspect
       |> update_topic
-      |> IO.inspect
   end
 
   def find_topic(data, @max_deep_board_page) do
@@ -121,8 +117,6 @@ defmodule Smflib.Post do
        Smflib.Authorization.grab_sessvar(body),
        grab_seqnum(body)
      ]
-
-     IO.inspect postdata
 
      url="#{url}/index.php?PHPSESSID=#{elem(sessid, 1)};action=post2;board=#{board}"
      case HTTPoison.post!(url, {:form, postdata}) do
