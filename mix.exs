@@ -9,12 +9,12 @@ defmodule Smflib.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: [
-        maintainers: ["Joshua Nussbaum"],
+        maintainers: ["Mikhail Kostin"],
         licenses: ["MIT"],
         links: %{github: "https://github.com/mekostin/smflib"}
       ],
       description: """
-           SNF forum library for Elixir
+           SMF forum library for Elixir
       """
     ]
   end
@@ -27,8 +27,8 @@ defmodule Smflib.MixProject do
 
   defp deps do
     [
-      {:httpoison, "~> 0.10.0"},
-      {:poison, ">=0.0.0", override: true},
+      {:httpoison, "~> 1.4.0"},
+      {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end
 end

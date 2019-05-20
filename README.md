@@ -1,6 +1,10 @@
 # Smflib
 
-**TODO: Add description**
+Simple Elixir library for working with SMF(v2.0.15) forum:
+Opportunities:
+- create a new topic with new initial message
+- add message to particular topic
+- lock and move the topic to archive branch of forum
 
 ## Installation
 
@@ -15,7 +19,34 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/smflib](https://hexdocs.pm/smflib).
+## Examples
 
+###Add new forum topic with message
+```elixir
+Smflib.authorize(url, user, password)
+  |> Smflib.Post.new(board_id, subject, message)
+```
+
+###Update the topic with an additional message
+```elixir
+Smflib.authorize(url, user, password)
+  |> Smflib.Post.update(board_id, subject, add_message)
+```
+
+###Lock and move topic to archive
+```elixir
+Smflib.authorize(url, user, password)
+  |> Smflib.Post.archive(board_id, subject, add_message)
+```
+
+###Full example
+SMF requires to make a delay between forum posting actions. Function sleep_between_actions is realized this requirements.
+
+```elixir
+Smflib.authorize(url, user, password)
+  |> Smflib.Post.new(board_id, subject, message)
+  |> sleep_between_actions
+  |> Smflib.Post.update(add_message)
+  |> sleep_between_actions
+  |> Smflib.Post.archive(archive_id)
+```
