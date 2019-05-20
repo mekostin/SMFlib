@@ -16,16 +16,18 @@ defmodule SmflibTest do
     password = System.get_env("SMF_PASSWORD")
 
     board_id = 13
+    archive_id = 3
     subject = "TEST TOPIC"
     message = "Hello World"
     add_message = "The World is Mine"
+
 
     Smflib.authorize(url, user, password)
       |> Smflib.Post.new(board_id, subject, message)
       |> sleep_between_actions
       |> Smflib.Post.update(add_message)
-      # |> sleep_between_post
-      # |> Smflib.Post.archive(add_message)
+      |> sleep_between_actions
+      |> Smflib.Post.archive(archive_id)
       |> (fn (out) -> assert out != :error end).()
 
   end
