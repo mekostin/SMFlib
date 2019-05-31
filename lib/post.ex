@@ -1,5 +1,5 @@
 defmodule Smflib.Post do
-  @max_deep_board_page 20
+  @max_deep_board_page 400
 
   defp grab_seqnum(body) do
     with [_, seqnum] <- Regex.run(~r/name="seqnum" value="(.*?)"/, body)
@@ -63,14 +63,14 @@ defmodule Smflib.Post do
   def find_topic(%{sess_id: nil} = data, _), do: data
   def find_topic(%Smflib.Data{topic_id: topic_id} = data, _) when topic_id>0, do: data
   def find_topic(%Smflib.Data{url: url, board_id: board, subject: subj, sess_id: sessid, topic_id: 0} = msg, board_list_id) do
-    url="#{url}/index.php?board=#{board}.#{board_list_id}"
+    url = "#{url}/index.php?board=#{board}.#{board_list_id}"
     with %HTTPoison.Response{body: body, headers: _, status_code: 200} <- HTTPoison.post!(url, {:form, [sessid]}),
-         [_, _, topic_id] <- Regex.run(~r/<a href="(.+);topic=(.+).0">#{subj}/, body)
+         [_, _, topic_id] <- Regex.run(~r/<a href="(.+);topic=(.+).0">#{subj}</, body)
     do
       msg |> Map.merge(%{topic_id: String.to_integer(topic_id)})
     else
       _ ->
-          find_topic(msg, board_list_id + 1)
+          find_topic(msg, board_list_id + 20)
     end
   end
 

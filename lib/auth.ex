@@ -8,7 +8,15 @@ defmodule Smflib.Authorization do
   end
 
   defp get_sessid(%{headers: header, status_code: 200}) do
-    header |> Enum.reduce([], &grab_sessid(&1, &2))
+    ss = header |> Enum.reduce([], &grab_sessid(&1, &2))
+    case ss do
+      {:PHPSESSID, sessid} -> ss
+
+      _ ->
+        IO.inspect header
+        IO.puts header
+        raise "EMPTY SESSID"
+    end
   end
 
   def grab_sessvar(body) do
@@ -19,8 +27,8 @@ defmodule Smflib.Authorization do
     end
   end
 
-  defp auth(%{body: body, headers: header, status_code: 200}, url, user, password) do
-    phpsessid = header |> Enum.reduce([], &grab_sessid(&1, &2))
+  defp auth(%{body: body} = resp, url, user, password) do
+    phpsessid = get_sessid(resp)
     sessvar = body |> grab_sessvar
     usr_pwd = :crypto.hash(:sha, String.downcase(user)<>password) |> Base.encode16 |> String.downcase
     hash_passwrd = :crypto.hash(:sha, usr_pwd <> elem(sessvar, 1)) |> Base.encode16 |> String.downcase
@@ -35,20 +43,23 @@ defmodule Smflib.Authorization do
 
     url=url <> "/index.php?action=login2"
     HTTPoison.post(url, {:form, postdata})
+      # |> IO.inspect
       |> auth
   end
 
   defp auth({:ok, %HTTPoison.Response{body: body, headers: header, status_code: 302}}) do
-    header |> Enum.reduce([], &grab_sessid(&1, &2))
+    get_sessid(%{headers: header, status_code: 200})
   end
 
-  defp auth(_, _, _, _) do
-    auth(nil)
-  end
-
-  defp auth(_) do
-    []
-  end
+  # defp auth(_, _, _, _) do
+  #   IO.inspect "============================================================="
+  #   auth(nil)
+  # end
+  #
+  # defp auth(_) do
+  #   IO.inspect "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+  #   []
+  # end
 
   def get(url, user, password) do
     HTTPoison.get!(url)
